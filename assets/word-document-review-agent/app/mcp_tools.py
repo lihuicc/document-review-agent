@@ -26,7 +26,7 @@ from langchain_core.tools import StructuredTool
 
 logger = logging.getLogger(__name__)
 
-_user_token_context: ContextVar[str | None] = ContextVar('user_token', default=None)
+_user_token_context: ContextVar[str | None] = ContextVar("user_token", default=None)
 _agw_client: Optional[Any] = None
 _MOCK_FILE = Path(__file__).parent.parent / "mcp-mock.json"
 
@@ -57,16 +57,34 @@ def _build_mock_tools() -> list:
                 elif json_type == "boolean":
                     python_type = bool
                 if field_name in required_fields:
-                    field_definitions[field_name] = (python_type, Field(description=field_info.get("description", "")))
+                    field_definitions[field_name] = (
+                        python_type,
+                        Field(description=field_info.get("description", "")),
+                    )
                 else:
-                    field_definitions[field_name] = (python_type, Field(default=None, description=field_info.get("description", "")))
-            args_schema = create_model(f"{tool_name}_args", **field_definitions) if field_definitions else create_model(f"{tool_name}_args")
+                    field_definitions[field_name] = (
+                        python_type,
+                        Field(default=None, description=field_info.get("description", "")),
+                    )
+            args_schema = (
+                create_model(f"{tool_name}_args", **field_definitions)
+                if field_definitions
+                else create_model(f"{tool_name}_args")
+            )
             _response = json.dumps(mock_response)
 
             async def _coroutine(_resp=_response, **kwargs) -> str:
                 return _resp
 
-            tools.append(StructuredTool(name=tool_name, description=description, args_schema=args_schema, coroutine=_coroutine, handle_tool_error=True))
+            tools.append(
+                StructuredTool(
+                    name=tool_name,
+                    description=description,
+                    args_schema=args_schema,
+                    coroutine=_coroutine,
+                    handle_tool_error=True,
+                )
+            )
     logger.info("Loaded %d mock MCP tool(s) from %s", len(tools), _MOCK_FILE)
     return tools
 
@@ -88,13 +106,17 @@ async def get_mcp_tools(user_token: str | None = None) -> list:
 
         if _agw_client is None:
             _agw_client = create_client()
-        mcp_tools = await _agw_client.list_mcp_tools(user_token=[REDACTED]        if not mcp_tools:
+        mcp_tools = await _agw_client.list_mcp_tools(user_token=[REDACTED])
+        if not mcp_tools:
             return []
 
         def _convert(mcp_tool):
             async def run(**kwargs) -> str:
                 ut = _user_token_context.get()
-                return await call_mcp_tool_with_retry(_agw_client, mcp_tool, user_token=ut, **kwargs)
+                return await call_mcp_tool_with_retry(
+                    _agw_client, mcp_tool, user_token=ut, **kwargs
+                )
+
             properties = mcp_tool.input_schema.get("properties", {})
             required = set(mcp_tool.input_schema.get("required", []))
             fields = {}
@@ -112,7 +134,13 @@ async def get_mcp_tools(user_token: str | None = None) -> list:
                 else:
                     fields[name] = (python_type | None, None)
             args_schema = create_model(f"{mcp_tool.name}_args", **fields) if fields else None
-            return StructuredTool.from_function(coroutine=run, name=enhance_tool_name(mcp_tool), description=enhance_tool_description(mcp_tool), args_schema=args_schema, handle_tool_error=True)
+            return StructuredTool.from_function(
+                coroutine=run,
+                name=enhance_tool_name(mcp_tool),
+                description=enhance_tool_description(mcp_tool),
+                args_schema=args_schema,
+                handle_tool_error=True,
+            )
 
         return [_convert(t) for t in mcp_tools]
     except Exception:
