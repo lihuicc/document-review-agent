@@ -1,0 +1,32 @@
+apiVersion: asset.sap/v1
+kind: Asset
+
+metadata:
+  name: word-document-review-agent
+  version: 1.0.0
+  description: AI agent that reviews .docx files for spelling, grammar, clarity, consistency, and logical issues, then returns the file with inline Word comments and track changes.
+
+type: agent
+
+container:
+  buildPath: .
+  port: 5000
+
+probes:
+  startup:
+    path: /.well-known/agent.json
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 18
+  liveness:
+    path: /.well-known/agent.json
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /.well-known/agent.json
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3

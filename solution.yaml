@@ -1,0 +1,10 @@
+apiVersion: solution.sap/v1
+kind: Solution
+
+metadata:
+  name: word-document-review-7f410
+  version: 1.0.0
+  description: AI agent that reviews Microsoft Word documents for spelling, grammar, clarity, and logical issues, then returns the annotated document with inline comments and track changes.
+
+assets:
+  - ref: ./assets/word-document-review-agent/asset.yaml
